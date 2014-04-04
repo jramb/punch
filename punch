@@ -123,7 +123,8 @@ check_out() {
       fi
     done 
   } < "$CLOCKFILE" >"$copyfile"
-  make_backup && mv -f "$copyfile" "$CLOCKFILE"
+  make_backup
+  mv -f "$copyfile" "$CLOCKFILE"
 }
 
 check_in() {
@@ -161,7 +162,8 @@ check_in() {
     done 
     #echo "$current --> $now_is" >&2
   } < "$CLOCKFILE" >"$copyfile"
-  make_backup && mv -f "$copyfile" "$CLOCKFILE"
+  make_backup 
+  mv -f "$copyfile" "$CLOCKFILE"
 }
 
 
