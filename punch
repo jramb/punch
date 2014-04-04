@@ -29,8 +29,9 @@ struct_match='^((\*+)[[:space:]]+)(.*)$'
 
 usage() {
   cat << EOF_USAGE
-usage: $(basename $0) <command>
-  2014 by jramb
+'punch' 2014 by jramb
+---------------------
+Usage: $(basename $0) <command> [<opt>]
 
 commands:
   h[elp]      Show this message
@@ -186,7 +187,7 @@ while true; do
     sh*) # show
       cat "$CLOCKFILE"
       ;;
-    in)
+    in|sta*)
       check_in $2
       ;;
     diff)
@@ -196,15 +197,19 @@ while true; do
         echo 'No changes yet'
       fi
       ;;
-    out)
+    out|sto*)
       check_out
+      ;;
+    h*)
+      usage
+      exit 1
       ;;
     ru*)
       running
       ;;
-    h*|*)
-      usage
-      exit 1
+    *)
+      running
+      echo "Run '$(basename "$0") help' for more info" >&2
       ;;
   esac
   shift
