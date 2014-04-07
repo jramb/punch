@@ -73,6 +73,42 @@ make_backup() {
   [[ ! -f "$backupfile" ]] && mv "$CLOCKFILE" "$backupfile"
 }
 
+
+analyze() {
+  section="$1"
+  section_found=
+  last_time=0
+  is_running=0
+  cat "$CLOCKFILE" |
+  {
+    while read line; do
+      if [[ "$line" =~ $struct_match ]]; then
+        current=${BASH_REMATCH[3]}
+        if [[ ! -z "$section" ]]; then
+          if [[ $current =~ "$section" ]]; then
+            if [[ -z "$section_found" ]]; then
+              section_found="$current"
+            else
+              echo "ERROR: Duplicate section match: '$section_found' and '$current'" >&2
+              exit 99 # Found duplicate structure
+            fi
+          fi
+        fi
+      fi
+      if [[ "$line" =~ $clock_match ]]; then
+        this_time=$(to_epoc ${BASH_REMATCH[1]})
+        if (( this_time > last_time )); then
+          last_time=$this_time
+        fi
+        if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
+          is_running=1
+        fi
+      fi
+    done 
+    echo "$last_time:$is_running:$section_found"
+  }
+}
+
 finish_time() {
   now_is="$(date "+%F %a %R")"
   elapsed=$(( $(to_epoc "$now_is") - $(to_epoc "${BASH_REMATCH[1]}") ))
@@ -129,6 +165,8 @@ check_out() {
 
 check_in() {
   section="$1"
+  check=$(analyze "$1")
+  (( $? > 0 )) && return 
   if [[ -z "$section" ]]; then
     echo "Need a section to check in"
     cmd_structure
@@ -177,7 +215,7 @@ edit() {
 
 while true; do
   case "$1" in
-    st*|ls)
+    str*|ls)
       cmd_structure
       ;;
     ti*)
