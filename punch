@@ -109,9 +109,9 @@ analyze() {
   }
 }
 
-finish_time() {
-  now_is="$(date "+%F %a %R")"
-  elapsed=$(( $(to_epoc "$now_is") - $(to_epoc "${BASH_REMATCH[1]}") ))
+duration_since() {
+  now_is=${2:- $(date +%s)}
+  elapsed=$(( $now_is - $(to_epoc "$1") ))
   let "elapsed_minutes=elapsed/60"
   if (( elapsed_minutes < 0 )); then
     let "elapsed_minutes = -elapsed_minutes"
@@ -119,8 +119,14 @@ finish_time() {
   fi
   let "elapsed_hours=elapsed_minutes/60"
   let "elapsed_minutes -= elapsed_hours * 60"
-  as_time=$(printf "%2s:%02d" "$sign$elapsed_hours" $elapsed_minutes)
-  echo "CLOCK: [${1}]--[$now_is] => $as_time"
+  as_time=$(printf "%s:%02d" "$sign$elapsed_hours" $elapsed_minutes)
+  echo "$as_time"
+}
+
+conclude_time() {
+  now_is="$(date "+%F %a %R")"
+  duration="$(duration_since "$1" $(to_epoc "$now_is"))"
+  echo "CLOCK: [${1}]--[$now_is] => $(printf "%5s" "$duration")"
 }
 
 running() {
@@ -133,8 +139,22 @@ running() {
     if [[ "$line" =~ $clock_match ]]; then
       if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
         echo "$current running" >&2
-        line=$(printf "%${indent}s%s\n" '' $(finish_time "${BASH_REMATCH[1]}"))
+        line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
         echo "$line [RUNNING]" >&2
+      fi
+    fi
+  done;
+}
+
+prompt() {
+  cat "$CLOCKFILE" |
+  while read line ; do
+    if [[ "$line" =~ $struct_match ]]; then
+      current=${BASH_REMATCH[3]}
+    fi
+    if [[ "$line" =~ $clock_match ]]; then
+      if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
+        echo "$current: $(duration_since "${BASH_REMATCH[1]}")"
       fi
     fi
   done;
@@ -151,7 +171,7 @@ check_out() {
       fi
       if [[ ! -z "$line" ]]; then
         if [[ "$line" =~ $clock_match && ! -n "${BASH_REMATCH[2]}" ]]; then
-          line=$(printf "%${indent}s%s\n" '' $(finish_time "${BASH_REMATCH[1]}"))
+          line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
           echo "$current checked out" >&2
           echo "$line" >&2
         fi
@@ -191,7 +211,7 @@ check_in() {
       fi
       if [[ -v line ]]; then
         if [[ "$line" =~ $clock_match && ! -n "${BASH_REMATCH[2]}" ]]; then
-          line=$(printf "%${indent}s%s\n" '' $(finish_time "${BASH_REMATCH[1]}"))
+          line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
           echo "$current checked out" >&2
           echo "$line" >&2
         fi
@@ -246,6 +266,10 @@ while true; do
       ;;
     ru*)
       running
+      ;;
+    pro*)
+      prompt
+      exit 0
       ;;
     *)
       running
