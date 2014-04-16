@@ -7,7 +7,8 @@
 
 #set -x
 set -e
-set -u
+#set -u
+today="$(date +%F)"
 
 shopt -s nocasematch   # case insensitve matching
 
@@ -47,6 +48,52 @@ You need to set the environmen variable CLOCKFILE (pointing to an existing file)
 EOF_USAGE
 }
 
+to_epoc() {
+  echo "$(date -d "$1" "+%s")"
+}
+
+secs_to_time() {
+  local elapsed=$1
+  local sign=
+  let "elapsed_minutes=elapsed/60"
+  if (( elapsed_minutes < 0 )); then
+    let "elapsed_minutes = -elapsed_minutes"
+    sign=-
+  fi
+  let "elapsed_hours=elapsed_minutes/60"
+  let "elapsed_minutes -= elapsed_hours * 60"
+  as_time=$(printf "%s:%02d" "$sign$elapsed_hours" $elapsed_minutes)
+  echo "$as_time"
+}
+
+duration_since() {
+  now_is=${2:- $(date +%s)}
+  secs_to_time $(( $now_is - $(to_epoc "$1") ))
+}
+
+conclude_time() {
+  now_is="$(date "+%F %a %R")"
+  duration="$(duration_since "$1" $(to_epoc "$now_is"))"
+  echo "CLOCK: [${1}]--[$now_is] => $(printf "%5s" "$duration")"
+}
+
+clock_info() {
+  local t_from=${BASH_REMATCH[1]}
+  local t_to=${BASH_REMATCH[3]}
+  local is_today=0
+  if [[ -n "$t_to" ]]; then
+    local t_to_e=$(to_epoc "$t_to")
+    [[ "$t_to" =~ "$today" ]] && is_today=1
+  else
+    is_today=1
+    local t_to_e=$(date +%s)
+  fi
+  if (( is_today )); then
+    local t_from_e=$(to_epoc "$t_from")
+    echo $(( t_to_e - t_from_e )) # $t_to_e - $_from_e
+  fi
+}
+
 cmd_structure() {
   local line
   cat "$CLOCKFILE" |
@@ -57,24 +104,20 @@ cmd_structure() {
   done;
 }
 
-# CLOCK: [2013-06-19 Wed 09:10]--[2013-06-19 Wed 19:10] => 10:00
-#         1                    2  3                    4   5
 cmd_times() {
   local line
   cat "$CLOCKFILE" |
   while read line ; do
     if [[ "$line" =~ $clock_match ]]; then
-      echo "$line"
+      echo "$line >>> $(clock_info)"
     fi
   done;
 }
 
-to_epoc() {
-  echo "$(date -d "$1" "+%s")"
-}
-
 make_backup() {
-  [[ ! -f "$backupfile" ]] && mv "$CLOCKFILE" "$backupfile"
+  if [[ ! -f "$backupfile" ]]; then
+    mv "$CLOCKFILE" "$backupfile"
+  fi
 }
 
 
@@ -113,42 +156,37 @@ analyze() {
   }
 }
 
-duration_since() {
-  local sign=
-  now_is=${2:- $(date +%s)}
-  elapsed=$(( $now_is - $(to_epoc "$1") ))
-  let "elapsed_minutes=elapsed/60"
-  if (( elapsed_minutes < 0 )); then
-    let "elapsed_minutes = -elapsed_minutes"
-    sign=-
-  fi
-  let "elapsed_hours=elapsed_minutes/60"
-  let "elapsed_minutes -= elapsed_hours * 60"
-  as_time=$(printf "%s:%02d" "$sign$elapsed_hours" $elapsed_minutes)
-  echo "$as_time"
-}
-
-conclude_time() {
-  now_is="$(date "+%F %a %R")"
-  duration="$(duration_since "$1" $(to_epoc "$now_is"))"
-  echo "CLOCK: [${1}]--[$now_is] => $(printf "%5s" "$duration")"
-}
-
 running() {
   cat "$CLOCKFILE" |
-  while read line ; do
-    if [[ "$line" =~ $struct_match ]]; then
-      indent=${#BASH_REMATCH[1]} # indent size
-      current=${BASH_REMATCH[3]}
-    fi
-    if [[ "$line" =~ $clock_match ]]; then
-      if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
-        echo "$current running" >&2
-        line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
-        echo "$line [RUNNING]" >&2
+  {
+    local current_cnt=0
+    local is_running=0
+    while read line ; do
+      if [[ "$line" =~ $struct_match ]]; then
+        indent=${#BASH_REMATCH[1]} # indent size
+        if (( current_cnt )); then
+          echo "$current $(secs_to_time $current_cnt)"
+          current_cnt=0
+        fi
+        is_running=0
+        current=${BASH_REMATCH[3]}
       fi
-    fi
-  done;
+      if [[ "$line" =~ $clock_match ]]; then
+        local secs=$(clock_info)
+        if (( secs )); then
+          (( current_cnt = current_cnt + secs ))
+        fi
+        if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
+          #echo "$current running" >&2
+          #line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
+          #echo "$line [RUNNING]" >&2
+          is_running=1
+          current="* $current"
+        fi
+      fi
+    done;
+    (( current_cnt )) && echo "$current $(secs_to_time $current_cnt)"
+  }
 }
 
 prompt() {
@@ -189,8 +227,8 @@ check_out() {
 }
 
 check_in() {
-  section="$1"
-  check=$(analyze "$1")
+  local section="$1"
+  local check=$(analyze "$1")
   (( $? > 0 )) && return 
   if [[ -z "$section" ]]; then
     echo "Need a section to check in"
@@ -198,8 +236,10 @@ check_in() {
     exit 2
   fi
   {
+    now_is=
     while read line
     do
+      print_line=1
       # check if current line is a structure line (starting with an asterix)
       if [[ "$line" =~ $struct_match ]]; then
         indent=${#BASH_REMATCH[1]} # indent size
@@ -212,9 +252,10 @@ check_in() {
           echo "$current checked in" >&2
           echo "$line" >&2
           unset line
+          print_line=0
         fi
       fi
-      if [[ -v line ]]; then
+      if (( print_line )); then
         if [[ "$line" =~ $clock_match && ! -n "${BASH_REMATCH[2]}" ]]; then
           line=$(printf "%${indent}s%s\n" '' $(conclude_time "${BASH_REMATCH[1]}"))
           echo "$current checked out" >&2
@@ -225,7 +266,8 @@ check_in() {
     done 
     #echo "$current --> $now_is" >&2
   } < "$CLOCKFILE" >"$copyfile"
-  make_backup 
+  make_backup
+  #diff "$copyfile" "$CLOCKFILE"
   mv -f "$copyfile" "$CLOCKFILE"
 }
 
