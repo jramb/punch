@@ -5,6 +5,10 @@
 ## Time reports...
 ########################
 
+#set -x
+set -e
+set -u
+
 shopt -s nocasematch   # case insensitve matching
 
 if [[ ! -f "$CLOCKFILE" ]]; then
@@ -110,6 +114,7 @@ analyze() {
 }
 
 duration_since() {
+  local sign=
   now_is=${2:- $(date +%s)}
   elapsed=$(( $now_is - $(to_epoc "$1") ))
   let "elapsed_minutes=elapsed/60"
@@ -154,7 +159,7 @@ prompt() {
     fi
     if [[ "$line" =~ $clock_match ]]; then
       if [[ ! -n "${BASH_REMATCH[2]}" ]]; then
-        echo "$current: $(duration_since "${BASH_REMATCH[1]}")"
+        echo "$current: $(duration_since "${BASH_REMATCH[1]}")\n"
       fi
     fi
   done;
