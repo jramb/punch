@@ -15,7 +15,7 @@ today="$(date +%F)"
 shopt -s nocasematch   # case insensitve matching
 
 if [[ ! -f "$CLOCKFILE" ]]; then
-  echo "You need to set the environmen variable CLOCKFILE (pointing to an existing file)"
+  echo "You need to set the environment variable CLOCKFILE (pointing to an existing file)"
   exit 2
 fi
 
@@ -46,7 +46,7 @@ commands:
   in <task>   Check in (start timer) for task (also stops all other timers)
   out         Check out (stops ALL timers)
 
-You need to set the environmen variable CLOCKFILE (pointing to an existing file)
+You need to set the environment variable CLOCKFILE (pointing to an existing file)
 EOF_USAGE
 }
 

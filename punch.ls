@@ -91,30 +91,38 @@ generate-line = (line-code) ->
     default
       line-code.text
 
+close-clock-line = (line) ->
+  unless line.start and not line.end
+    throw new Error "line #line not a clock line or not open!"
+  line.end = start-date
+  line.end.setMilliseconds 0
+  line.end.setSeconds 0
+  line.duration = (line.end - line.start)/1000/60
+
 
 save-time-data = (data) ->
-  println "save-time-data: #tmpfile"
   if !fs.exists-sync backupfile
     fs.rename-sync clockfile, backupfile
-    println "Backup created: #backupfile"
-  println "Start writing"
+    #println "Backup created: #backupfile"
   out = fs.create-write-stream tmpfile #clockfile
   out.on \error, ->
     println "Error: #it"
+    process.exit 1
   out.on \finish, ->
-    println "Finish event"
+    #println "Finish event"
     if fs.exists-sync clockfile
       fs.unlink clockfile, (err) ->
         if err
           println "** Could not remove #clockfile"
           process.exit 1
         fs.rename-sync tmpfile, clockfile
-        println "All written"
+        #println "All written"
     else
       fs.rename-sync tmpfile, clockfile
 
-  each ((it) !-> out.write generate-line(it)+"\n" ), data
-  println "Finished writing"
+  #clean-data data
+  each ((it) !-> out.write generate-line(it)+"\n"), data
+  #println "Finished writing"
   out.end!
 
 
@@ -125,12 +133,10 @@ load-time-file = (cb, params) !->
     process.exit 1
   current-deep = 0
   file-data = []
-  rd = readline.create-interface {
-    input: fs.create-read-stream clockfile
-    output: process.stdout
+  rd = readline.create-interface do
+    input:    fs.create-read-stream clockfile
+    output:   process.stdout
     terminal: false
-  }
-
   rd.on \line, (line) !->
     l = parse-line line, current-deep
     file-data.push l
@@ -145,7 +151,7 @@ calc-from-to = (date-filter) ->
   # possible values: today, lastmonth, week, thisyear-1, today-20, week+2...
   if date-filter[0]
     mtch = date-filter[0].match /^(this|last)?(month|week|year|today|all)([+-]\d+)?$/i
-    [ null, pre, unit, mod ] = mtch
+    [ null, pre, unit, mod ] = mtch if mtch
   pre ?= \this
   unit ?= \month
   mod ?= 0
@@ -186,38 +192,106 @@ list-headers = (data, date-filter) !->
   summarize data, date-filter
   println data[0].info
   for l in data
-    if l.type == \header
+    if l.type == \header and l.sum > 0
       println \* * l.deep + " #{l.header}" +
         if l.sum  and l.sum > 0
         then  " [#{duration-text l.sum}]"
         else ""
 
+close-all = (data) !->
+  var last-header
+  for l in data
+    if l.type == \header
+      last-header = l
+    if l.type == \clock and not l.end
+      data[0].modified = yes
+      close-clock-line l
+      println "#{last-header.text} checked out: #{duration-text l.duration}"
+      println "#{generate-line l}"
+
+close-all-times = (data, params) !->
+  close-all data
+  save-time-data data if data[0].modified
+
+check-in = (data, params) !->
+  var found-idx
+  found=0
+  unless params[0]
+    println "Need a header (or part of it) to check in"
+    process.exit 1
+  header-like = new RegExp params[0], "i"
+  idx = -1
+  close-all data
+  for l in data
+    idx++
+    if l.type == \header and l.text.match header-like
+      found++
+      println l.text
+      found-idx=idx
+  if found==0
+    println "Found no matching header for #{params[0]}"
+  else if found>1
+    println "Found too many matching headers for #{params[0]}"
+  else
+    # insert a new, open clock line
+    open-line =
+      type: \clock
+      start: start-date
+      deep: data[found-idx].deep
+    data.splice found-idx + 1, 0, open-line
+    data[0].modified = yes
+    # report the newly opened line:
+    println "#{generate-line open-line} CHECKED IN"
+    save-time-data data if data[0].modified
+
+prompt = (data, params) !->
+  var last-header
+  for l in data
+    if l.type == \header
+      last-header = l
+    if l.type == \clock and not l.end
+      close-clock-line l # just to have the duration
+      println "#{last-header.header}: #{duration-text l.duration}"
+
+
 /* ********************************** */
 
 
 main = (argv) ->
-
-  argv.shift!
-  argv.shift!
+  argv.shift! # node itself
+  argv.shift! # the script file
   cmd = argv.shift!
   switch cmd
     case \diff
       child = child_process.spawn('gvimdiff',[clockfile, backupfile], {detached: yes});
       child.on \close, -> println "command ended"
       println argv
-    case \ls
+    case \ls, \show
       load-time-file list-headers, argv
     case \rewrite
-      load-time-file save-time-data
+      load-time-file save-time-data, argv
+    case \out
+      load-time-file close-all-times, argv
+    case \in
+      load-time-file check-in, argv
+    case \prompt
+      load-time-file prompt, argv
+    case \ru, \running
+      load-time-file prompt, argv
     default
       println """
-Usage: punch <cmd> {<options>}*
+'punch' 2014 by jramb
+---------------------
+Usage: punch <command> {<opt>, ...}
+
+commands:
+  h[elp]      Show this message
+  ls / show   lists tasks in clock filej
+  in <task>   Check in (start timer) for task (also stops all other timers)
+  out         Check out (stops ALL timers)
+
+You need to set the environment variable CLOCKFILE (pointing to an existing file)
 """
-  #each ((val, x) !-> println "#val #x"), argv
-  #i=0
-  #for x in argv
-    #println i++ + ": " ++ x
-  #return 0
 
 #process.exit
 main process.argv
