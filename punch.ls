@@ -33,7 +33,6 @@ date-time-match= new RegExp "(#{date-match.source} [a-z]{2,3} #{time-match.sourc
 clock-match    = new RegExp "CLOCK: \\[#{date-time-match.source}\\](--\\[#{date-time-match.source}\\]( =>\\s*(#{duration-match.source}))?)?", \i
 header-match   = /^(\*+)\s+(.*)$/
 date-time-match-det = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i
-struct_match   = '^((\*+)[[:space:]]+)(.*)$'
 
 parse-date-time = (dt) ->
   if dt
@@ -41,15 +40,6 @@ parse-date-time = (dt) ->
     if parts
       new Date parts[1], +parts[2]-1, parts[3], parts[4], parts[5]
 
-is-clock-line = (line) ->
-  # CLOCK: [2013-06-14 Fri 09:00]--[2013-06-14 Fri 17:00] =>  8:00
-  #line = ' CLOCK: [2013-06-14 Fri 09:00]'
-  if (ar = line.match clock-match)
-    s = parse-date-time ar[1]
-    e = parse-date-time ar[3]
-    start: s
-    end: e
-    duration: (e - s)/1000/60 if e
 
 parse-line = (line, deep) ->
   if (h = line.match /^(\*+)\s+(.*)$/)
@@ -80,6 +70,7 @@ duration-text = (d) ->
   d = " " * (2-d.length >? 0) + d
   "#d:#{pad2 m}"
 
+
 generate-line = (line-code) ->
   switch line-code.type
     case \header
@@ -92,10 +83,6 @@ generate-line = (line-code) ->
       ctxt
     default
       line-code.text
-
-is-header-line = (line) ->
-  #h = line.match /^(\*+)\s\+(.*)$/
-  h = line.match header-match
 
 
 save-time-data = (data) ->
@@ -122,7 +109,7 @@ save-time-data = (data) ->
   each ((it) !-> out.write generate-line(it)+"\n" ), data
   println "Finished writing"
   out.end!
-  #out.close!
+
 
 # load time-file into memory
 load-time-file = (cb, params) !->
@@ -145,23 +132,28 @@ load-time-file = (cb, params) !->
   # finally the callback
   rd.on \close, !-> cb file-data, params
 
+
 # calculate a from and to date depending on the date-filter parameter
 calc-from-to = (date-filter) ->
-  filter-text = date-filter[0]
+  # possible values: today, lastmonth, week, thisyear-1, today-20, week+2...
+  if date-filter[0]
+    mtch = date-filter[0].match /^(this|last)?(month|week|year|today|all)([+-]\d+)?$/i
+    [ null, pre, unit, mod ] = mtch
+  pre ?= \this
+  unit ?= \month
+  mod ?= 0
+  mod = +mod
+  mod -= 1 if pre=="last"
+  #println "#pre #unit #mod"
   [y,m,d] = [start-date.getFullYear!, start-date.getMonth!, start-date.getDate!]
-  mod=0
   [y1,y2,m1,m2,d1,d2] =
-    switch filter-text
+    switch unit.toLowerCase!
       case \today
         [y, y, m, m, d+mod, d+mod+1]
-      case \thismonth
+      case \month
         [y, y, m+mod, m+mod+1, 1, 1]
-      case \lastmonth
-        [y, y, m+mod-1, m+mod, 1, 1]
-      case \thisyear
+      case \year
         [y+mod, y+mod+1, 0, 0, 1, 1]
-      case \lastyear
-        [y+mod-1, y+mod, 0, 0, 1, 1]
       default
         [0, 3000, 0, 0, 1, 1]
   [(new Date y1, m1, d1) , new Date y2, m2, d2]
