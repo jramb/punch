@@ -4,6 +4,13 @@ punch
 Command line tool to manage CLOCK entries in an org-mode file. The focus and main usage is to use it
 as an easy tool to punch in and out to record working time.
 
+2014-06-30
+----------
+I started to rewrite this into a nodejs program (using LiveScript.net).
+This is not complete but will be much faster and should be more convenient in many ways.
+
+OLD
+---
 The program is a Bash script file `punch`. You need to set the env variable `CLOCKFILE` to point to an *existing* file
 which contains at least one header (a line starting with `*`).
 
