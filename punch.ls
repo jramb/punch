@@ -19,6 +19,13 @@ if !Date.prototype.clock-text-date
     @clock-text!substring 0, 10
 
 
+# getDay returns 0=Sun, 1=Mon, etc. 6=Sat
+# this tweak returns 0=Mon, etc, 6=Sun
+if !Date.prototype.get-mon-day
+  Date.prototype.get-mon-day = ->
+    day = @getDay! - 1
+    if day<0 then 6 else day
+
 start-date = new Date!
 clockfile=process.env.CLOCKFILE
 backupfile="#clockfile-#{start-date.clock-text!substring 0, 10}"
@@ -150,6 +157,9 @@ calc-from-to = (date-filter) ->
     switch unit.toLowerCase!
       case \today
         [y, y, m, m, d+mod, d+mod+1]
+      case \week
+        d - start-date.get-mon-day!
+        [y, y, m, m, d+mod*7, d+(mod+1)*7]
       case \month
         [y, y, m+mod, m+mod+1, 1, 1]
       case \year
@@ -161,7 +171,10 @@ calc-from-to = (date-filter) ->
 summarize = (data, date-filter) !->
   var last-header
   [f-from, f-to] = calc-from-to date-filter
-  data[0].info = f-from.clock-text-date! + " -- " + f-to.clock-text-date!
+  f-to-show = f-to
+  # show a modified to-date, since the check is up-to-excluding, which is confusing to many
+  f-to-show.setDate f-to.getDate! - 1
+  data[0].info = f-from.clock-text-date! + " -- " + f-to-show.clock-text-date!
   for l in data
     if l.duration and l.start>=f-from and l.start<f-to
       last-header.sum += l.duration
