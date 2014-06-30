@@ -5,6 +5,8 @@
 ## Time reports...
 ########################
 
+export LANG=US # fixes some issues
+
 #set -x
 set -e
 #set -u
