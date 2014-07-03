@@ -1,9 +1,7 @@
 #!/usr/bin/env lsc
 /* 2014 by J Ramb */
 
-#require! _: 'underscore'
 require! <[ readline fs os child_process ]>
-{ each, map } = require \prelude-ls
 
 println = console.log
 
@@ -27,9 +25,14 @@ if !Date.prototype.get-mon-day
     if day<0 then 6 else day
 
 start-date = new Date!
-clockfile=process.env.CLOCKFILE
-backupfile="#clockfile-#{start-date.clock-text!substring 0, 10}"
-tmpfile="#clockfile-#{start-date.clock-text!replace /[^0-9]/g ''}"
+config =
+  clockfile: process.env.CLOCKFILE
+  backupfile: "-#{start-date.clock-text!substring 0, 10}"
+
+let config-file = 'punch.json'
+  if fs.exists-sync config-file
+    if fs.readFileSync 'punch.json'
+      configFIXME = JSON.parse(that)
 
 
 # CLOCK: [2013-06-14 Fri 09:00]--[2013-06-14 Fri 17:00] =>  8:00
@@ -69,7 +72,6 @@ parse-line = (line, deep) ->
     text: line
 
 
-
 duration-text = (d) ->
   m = d %% 60
   d = if d>0 then d - m else d + m
@@ -99,8 +101,10 @@ close-clock-line = (line) ->
   line.end.setSeconds 0
   line.duration = (line.end - line.start)/1000/60
 
-
 save-time-data = (data) ->
+  clockfile = config.clockfile
+  backupfile = clockfile + config.backupfile
+  tmpfile = clockfile + "-#{start-date.clock-text!replace /[^0-9]/g ''}"
   if !fs.exists-sync backupfile
     fs.rename-sync clockfile, backupfile
     #println "Backup created: #backupfile"
@@ -121,13 +125,15 @@ save-time-data = (data) ->
       fs.rename-sync tmpfile, clockfile
 
   #clean-data data
-  each ((it) !-> out.write generate-line(it)+"\n"), data
+  for it in data
+    out.write generate-line(it)+"\n"
   #println "Finished writing"
   out.end!
 
 
 # load time-file into memory
 load-time-file = (cb, params) !->
+  clockfile = config.clockfile
   if !clockfile or !fs.exists-sync clockfile
     println "You need to set the environment variable CLOCKFILE (pointing to an existing file)"
     process.exit 1
@@ -177,7 +183,7 @@ calc-from-to = (date-filter) ->
 summarize = (data, date-filter) !->
   var last-header
   [f-from, f-to] = calc-from-to date-filter
-  f-to-show = f-to
+  f-to-show = new Date f-to  # MUST copy since I will change the date!
   # show a modified to-date, since the check is up-to-excluding, which is confusing to many
   f-to-show.setDate f-to.getDate! - 1
   data[0].info = f-from.clock-text-date! + " -- " + f-to-show.clock-text-date!
@@ -220,10 +226,8 @@ check-in = (data, params) !->
     println "Need a header (or part of it) to check in"
     process.exit 1
   header-like = new RegExp params[0], "i"
-  idx = -1
   close-all data
-  for l in data
-    idx++
+  for l,idx in data
     if l.type == \header and l.text.match header-like
       found++
       println l.text
@@ -263,9 +267,11 @@ main = (argv) ->
   cmd = argv.shift!
   switch cmd
     case \diff
-      child = child_process.spawn('gvimdiff',[clockfile, backupfile], {detached: yes});
-      child.on \close, -> println "command ended"
-      println argv
+      backupfile = config.clockfile + config.backupfile
+      if fs.exists-sync backupfile
+        child = child_process.spawn('gvimdiff',[config.clockfile, backupfile], {detached: yes});
+        child.on \close, -> println "command ended"
+        println argv
     case \ls, \show
       load-time-file list-headers, argv
     case \rewrite
