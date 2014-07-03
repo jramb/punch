@@ -20,13 +20,13 @@ You only need one of these files, take the js version if you are not interested 
 * create a commando `punch` or `p` which executes `node punch.js` or `node punch.ls` (you only need one of these)
 * FIXME: Windows instructions
 
-Example org-file:
-`
+Example org-file, headers start with an asterix. Add an empty line in the end of the file!
+```
 * Work
 ** ProjectA
 ** ProjectB
-`
-`
+
+```
 
 2014-06-30
 ----------
