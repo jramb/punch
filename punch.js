@@ -312,7 +312,7 @@
       }
       if (l.type === 'clock' && !l.end) {
         closeClockLine(l);
-        println(lastHeader.header + ": " + durationText(l.duration));
+        println(lastHeader.header + ": " + durationText(l.duration) + "\\n");
       }
     }
   };
@@ -344,6 +344,7 @@
       return loadTimeFile(closeAllTimes, argv);
     case 'in':
       return loadTimeFile(checkIn, argv);
+    case 'pro':
     case 'prompt':
       return loadTimeFile(prompt, argv);
     case 'ru':

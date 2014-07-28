@@ -255,7 +255,7 @@ prompt = (data, params) !->
       last-header = l
     if l.type == \clock and not l.end
       close-clock-line l # just to have the duration
-      println "#{last-header.header}: #{duration-text l.duration}"
+      println "#{last-header.header}: #{duration-text l.duration}\\n"
 
 
 /* ********************************** */
@@ -280,7 +280,7 @@ main = (argv) ->
       load-time-file close-all-times, argv
     case \in
       load-time-file check-in, argv
-    case \prompt
+    case \pro, \prompt
       load-time-file prompt, argv
     case \ru, \running
       load-time-file prompt, argv
