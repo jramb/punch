@@ -329,10 +329,16 @@
         child = child_process.spawn('gvimdiff', [config.clockfile, backupfile], {
           detached: true
         });
-        child.on('close', function(){
+        return child.on('close', function(){
           return println("command ended");
         });
-        return println(argv);
+      } else {
+        child = child_process.spawn('gvim', [config.clockfile], {
+          detached: true
+        });
+        return child.on('close', function(){
+          return println("command ended");
+        });
       }
       break;
     case 'ls':

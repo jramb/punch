@@ -5,3 +5,4 @@ all: punch.min.js
 
 %.min.js: %.js
 	uglifyjs $^ >$@
+	cp $@ ~/semper/

@@ -269,9 +269,14 @@ main = (argv) ->
     case \diff
       backupfile = config.clockfile + config.backupfile
       if fs.exists-sync backupfile
+        #child = child_process.spawn('vimdiff',[config.clockfile, backupfile], {detached: yes});
         child = child_process.spawn('gvimdiff',[config.clockfile, backupfile], {detached: yes});
         child.on \close, -> println "command ended"
-        println argv
+        #println argv
+      else
+        #child = child_process.spawn('vim',[config.clockfile], {detached: yes});
+        child = child_process.spawn('gvim',[config.clockfile], {detached: yes});
+        child.on \close, -> println "command ended"
     case \ls, \show
       load-time-file list-headers, argv
     case \rewrite
