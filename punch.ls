@@ -31,7 +31,7 @@ config =
 
 let config-file = 'punch.json'
   if fs.exists-sync config-file
-    if fs.readFileSync 'punch.json'
+    if fs.readFileSync config-file
       configFIXME = JSON.parse(that)
 
 
@@ -170,7 +170,7 @@ calc-from-to = (date-filter) ->
       case \today
         [y, y, m, m, d+mod, d+mod+1]
       case \week
-        d - start-date.get-mon-day!
+        d -= start-date.get-mon-day!
         [y, y, m, m, d+mod*7, d+(mod+1)*7]
       case \month
         [y, y, m+mod, m+mod+1, 1, 1]
