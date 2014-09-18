@@ -1,6 +1,20 @@
 /* 2014 by J Ramb */
 /// <reference path="node.d.ts" />
 
+//enum Type {clock, text, header}
+
+interface TimePair {
+  type:       string; // 'clock', 'text', 'header'
+  text:       string;
+  header?:    string;
+  info?:      string;
+  start?:     Date;
+  end?:       Date;
+  duration?:  number;
+  sum?:       number;
+  deep?:      number;
+  modified?:  boolean;
+}
 
 (function() {
   var config : { clockfile: string; backupfile : string };
@@ -9,6 +23,15 @@
   var os = require('os');
   var child_process = require('child_process');
   var println = console.log;
+  var startDate = new Date();
+  var dateMatch = /\d{4}-\d{2}-\d{2}/;
+  var timeMatch = /\d{2}:\d{2}/;
+  var durationMatch = /-?\d+:\d{2}/;
+  var dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
+  var clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
+  var headerMatch = /^(\*+)\s+(.*)$/;
+  var dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
+
 
   function pad2(d: number) : string {
     if (d < 10) {
@@ -18,17 +41,17 @@
     }
   }
 
-  function clockText (dat: Date) : string {
+  function clockText(dat: Date) : string {
     var d;
     d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
     return dat.getFullYear() + "-" + pad2(dat.getMonth() + 1) + "-" + pad2(dat.getDate()) + " " + d + " " + pad2(dat.getHours()) + ":" + pad2(dat.getMinutes());
   }
 
-  function clockTextDate (dat: Date) :string {
+  function clockTextDate(dat: Date) :string {
     return clockText(dat).substring(0, 10);
   }
 
-  function getMonDay (d: Date) : number {
+  function getMonDay(d: Date) : number {
     var day;
     day = d.getDay() - 1;
     if (day < 0) {
@@ -38,7 +61,6 @@
     }
   }
 
-  var startDate = new Date();
 
   config = {
     clockfile: process.env.CLOCKFILE,
@@ -54,16 +76,7 @@
     }
   }.call(this, 'punch.json'));
 
-  var dateMatch = /\d{4}-\d{2}-\d{2}/;
-  var timeMatch = /\d{2}:\d{2}/;
-  var durationMatch = /-?\d+:\d{2}/;
-
-  var dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
-  var clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
-  var headerMatch = /^(\*+)\s+(.*)$/;
-  var dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
-
-  function parseDateTime(dt){
+  function parseDateTime(dt : string) : Date{
     var parts;
     if (dt) {
       parts = dt.match(dateTimeMatchDet);
@@ -71,9 +84,9 @@
         return new Date(parts[1], +parts[2] - 1, parts[3], parts[4], parts[5]);
       }
     }
-  };
+  }
 
-  function parseLine(line, deep){
+  function parseLine(line: string, deep: number): TimePair {
     var h, ar, s, e;
     if (h = line.match(/^(\*+)\s+(.*)$/)) {
       return {
@@ -92,28 +105,33 @@
         duration: e ? (e - s) / 1000 / 60 : void 8,
         text: line,
         deep: deep
-      };
+      }
     } else {
       return {
         type: 'text',
         text: line
-      };
+      }
     }
-  };
+  }
 
-  function durationText(d){
-    var m, ref$;
+  function repeatString$(str: string, n: number){
+    for (var r = ''; n > 0; (n >>= 1) && (str += str)) if (n & 1) r += str;
+    return r;
+  }
+
+  function durationText(d: number){
+    var m : number, ref$ : number, ds : string;
     m = ((d) % (ref$ = 60) + ref$) % ref$;
     d = d > 0
       ? d - m
       : d + m;
-    d = d / 60 + "";
-    d = repeatString$(" ", (ref$ = 2 - d.length) > 0 ? ref$ : 0) + d;
-    return d + ":" + pad2(m);
+    ds = d / 60 + "";
+    ds = repeatString$(" ", (ref$ = 2 - ds.length) > 0 ? ref$ : 0) + ds;
+    return ds + ":" + pad2(m);
   };
 
-  function generateLine(lineCode){
-    var ctxt;
+  function generateLine(lineCode: TimePair){
+    var ctxt : string;
     switch (lineCode.type) {
     case 'header':
       return repeatString$('*', lineCode.deep) + ' ' + lineCode.header;
@@ -171,7 +189,7 @@
     return out.end();
   };
 
-  function loadTimeFile(cb: (fd: any[], p: string[]) => void, params: string[]){
+  function loadTimeFile(cb: (fd: TimePair[], p: string[]) => void, params: string[]){
     var clockfile, currentDeep, fileData, rd;
     clockfile = config.clockfile;
     if (!clockfile || !fs.existsSync(clockfile)) {
@@ -198,7 +216,7 @@
     });
   };
 
-  function calcFromTo (dateFilter : string) : Date[] {
+  function calcFromTo(dateFilter : string) : Date[] {
     var mtch, pre, unit, mod, ref$, y, m, d, y1, y2, m1, m2, d1, d2;
     if (dateFilter) {
       mtch = dateFilter.match(/^(this|last)?(month|week|year|today|all)([+-]\d+)?$/i);
@@ -235,38 +253,77 @@
     return [new Date(y1, m1, d1), new Date(y2, m2, d2)];
   };
 
-  function summarize(data, dateFilter){
-    var lastHeader, ref$, fFrom, fTo, fToShow, i$, len$, l;
-    ref$ = calcFromTo(dateFilter[0]), fFrom = ref$[0], fTo = ref$[1];
-    fToShow = new Date(fTo);
-    fToShow.setDate(fTo.getDate() - 1);
-    data[0].info = clockTextDate(fFrom) + " -- " + clockTextDate(fToShow);
+  function summarize(data : TimePair[], dateFrom: Date, dateTo: Date, headerRe?: RegExp){
+    var lastHeader: TimePair, dateToShow: Date, i$, len$, l;
+    var total = 0;
+    dateToShow = new Date(dateTo.getTime());
+    dateToShow.setDate(dateTo.getDate() - 1);
+    if ((dateToShow.getTime() - dateFrom.getTime()) > 0) {
+      data[0].info = clockTextDate(dateFrom) + " -- " + clockTextDate(dateToShow);
+    } else {
+      data[0].info = clockTextDate(dateFrom);
+    }
     for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
       l = data[i$];
-      if (l.duration && l.start >= fFrom && l.start < fTo) {
+      if (l.duration && l.start >= dateFrom && l.start < dateTo && lastHeader.text.match(headerRe)) {
         lastHeader.sum += l.duration;
+        total += l.duration;
       }
       if (l.type === 'header') {
         lastHeader = l;
         lastHeader.sum = 0;
       }
     }
-  };
+    data[0].sum = total;
+  }
 
-  function listHeaders(data, dateFilter){
-    var i$, len$, l;
-    summarize(data, dateFilter);
-    println(data[0].info);
-    for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
-      l = data[i$];
-      if (l.type === 'header' && l.sum > 0) {
+  function listHeaders(data: TimePair[], argv: string[]){
+    var i, len, l;
+    var dateFilter = argv[0];
+    var headerLike = new RegExp(argv[1], "i");
+    var ref$ = calcFromTo(argv[0]), dateFrom = ref$[0], dateTo = ref$[1];
+    closeAll(data);
+    summarize(data, dateFrom, dateTo, headerLike);
+    println(data[0].info + ": [" + durationText(data[0].sum) + "]");
+    for (i = 0, len = data.length; i < len; ++i) {
+      l = data[i];
+      if (l.type === 'header' && l.sum > 0 && l.header.match(headerLike) ) {
         println(repeatString$('*', l.deep) + (" " + l.header) + (l.sum && l.sum > 0 ? " [" + durationText(l.sum) + "]" : ""));
       }
     }
-  };
+  }
 
-  function closeAll(data){
-    var lastHeader, i$, len$, l;
+  function addDays(d: Date, addDays=1) {
+    var d = new Date(d.getTime());
+    d.setDate(d.getDate() + addDays);
+    return d;
+  }
+
+  function listDays(data: TimePair[], argv: string[]) {
+    var i, len, l;
+    var dateFilter = argv[0];
+    var headerLike = new RegExp(argv[1], "i");
+    var ref$ = calcFromTo(argv[0]), dateFrom = ref$[0], dateTo = ref$[1];
+    var datePlusOne: Date;
+    closeAll(data);
+    while (dateFrom.getTime() < dateTo.getTime()) {
+      datePlusOne = addDays(dateFrom);
+      summarize(data, dateFrom, datePlusOne, headerLike);
+      if (data[0].sum>0) {
+        println(data[0].info + ": [" + durationText(data[0].sum) + "]");
+        for (i = 0, len = data.length; i < len; ++i) {
+          l = data[i];
+          if (l.type === 'header' && l.sum > 0 && l.header.match(headerLike) ) {
+            println(repeatString$('*', l.deep) + (" " + l.header) + (l.sum && l.sum > 0 ? " [" + durationText(l.sum) + "]" : ""));
+          }
+        }
+      }
+      dateFrom = addDays(dateFrom, 1);
+    }
+  }
+
+  function closeAll(data: TimePair[]) {
+    var lastHeader, i$: number, len$: number, l;
     for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
       l = data[i$];
       if (l.type === 'header') {
@@ -279,16 +336,16 @@
         println(generateLine(l) + "");
       }
     }
-  };
+  }
 
-  function closeAllTimes(data, params){
+  function closeAllTimes(data: TimePair[], params: string[]) {
     closeAll(data);
     if (data[0].modified) {
       saveTimeData(data);
     }
-  };
+  }
 
-  function checkIn(data, params){
+  function checkIn(data: TimePair[], params: string[]){
     var foundIdx, found, headerLike, i$, len$, idx, l, openLine;
     found = 0;
     if (!params[0]) {
@@ -325,8 +382,8 @@
     }
   };
 
-  function prompt(data, params : string[]){
-    var lastHeader, i$, len$, l;
+  function prompt(data: TimePair[], params : string[]){
+    var lastHeader: TimePair, i$: number, len$: number, l: TimePair;
     for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
       l = data[i$];
       if (l.type === 'header') {
@@ -341,7 +398,7 @@
 
   /* ********************************** */
   function main (argv : string[] ) : void {
-    var cmd, backupfile, child;
+    var cmd, backupfile: string, child;
     argv.shift();
     argv.shift();
     cmd = argv.shift();
@@ -364,9 +421,12 @@
         });
       }
       break;
+    case 'sum':
     case 'ls':
     case 'show':
       return loadTimeFile(listHeaders, argv);
+    case 'days':
+      return loadTimeFile(listDays, argv);
     case 'rewrite':
       return loadTimeFile(saveTimeData, argv);
     case 'out':
@@ -383,10 +443,6 @@
       return println("'punch' 2014 by jramb\n---------------------\nUsage: punch <command> {<opt>, ...}\n\ncommands:\n  h[elp]      Show this message\n  ls / show   lists tasks in clock filej\n  in <task>   Check in (start timer) for task (also stops all other timers)\n  out         Check out (stops ALL timers)\n\nYou need to set the environment variable CLOCKFILE (pointing to an existing file)");
     }
   };
-  main(process.argv);
-  function repeatString$(str, n){
-    for (var r = ''; n > 0; (n >>= 1) && (str += str)) if (n & 1) r += str;
-    return r;
-  }
 
+  main(process.argv);
 }).call(this);

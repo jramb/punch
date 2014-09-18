@@ -1,5 +1,6 @@
 /* 2014 by J Ramb */
 /// <reference path="node.d.ts" />
+
 (function () {
     var config;
     var readline = require('readline');
@@ -7,6 +8,14 @@
     var os = require('os');
     var child_process = require('child_process');
     var println = console.log;
+    var startDate = new Date();
+    var dateMatch = /\d{4}-\d{2}-\d{2}/;
+    var timeMatch = /\d{2}:\d{2}/;
+    var durationMatch = /-?\d+:\d{2}/;
+    var dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
+    var clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
+    var headerMatch = /^(\*+)\s+(.*)$/;
+    var dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
 
     function pad2(d) {
         if (d < 10) {
@@ -36,8 +45,6 @@
         }
     }
 
-    var startDate = new Date();
-
     config = {
         clockfile: process.env.CLOCKFILE,
         backupfile: "-" + clockText(startDate).substring(0, 10)
@@ -52,15 +59,6 @@
         }
     }.call(this, 'punch.json'));
 
-    var dateMatch = /\d{4}-\d{2}-\d{2}/;
-    var timeMatch = /\d{2}:\d{2}/;
-    var durationMatch = /-?\d+:\d{2}/;
-
-    var dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
-    var clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
-    var headerMatch = /^(\*+)\s+(.*)$/;
-    var dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
-
     function parseDateTime(dt) {
         var parts;
         if (dt) {
@@ -70,7 +68,6 @@
             }
         }
     }
-    ;
 
     function parseLine(line, deep) {
         var h, ar, s, e;
@@ -99,15 +96,21 @@
             };
         }
     }
-    ;
+
+    function repeatString$(str, n) {
+        for (var r = ''; n > 0; (n >>= 1) && (str += str))
+            if (n & 1)
+                r += str;
+        return r;
+    }
 
     function durationText(d) {
-        var m, ref$;
+        var m, ref$, ds;
         m = ((d) % (ref$ = 60) + ref$) % ref$;
         d = d > 0 ? d - m : d + m;
-        d = d / 60 + "";
-        d = repeatString$(" ", (ref$ = 2 - d.length) > 0 ? ref$ : 0) + d;
-        return d + ":" + pad2(m);
+        ds = d / 60 + "";
+        ds = repeatString$(" ", (ref$ = 2 - ds.length) > 0 ? ref$ : 0) + ds;
+        return ds + ":" + pad2(m);
     }
     ;
 
@@ -240,37 +243,75 @@
     }
     ;
 
-    function summarize(data, dateFilter) {
-        var lastHeader, ref$, fFrom, fTo, fToShow, i$, len$, l;
-        ref$ = calcFromTo(dateFilter[0]), fFrom = ref$[0], fTo = ref$[1];
-        fToShow = new Date(fTo);
-        fToShow.setDate(fTo.getDate() - 1);
-        data[0].info = clockTextDate(fFrom) + " -- " + clockTextDate(fToShow);
+    function summarize(data, dateFrom, dateTo, headerRe) {
+        var lastHeader, dateToShow, i$, len$, l;
+        var total = 0;
+        dateToShow = new Date(dateTo.getTime());
+        dateToShow.setDate(dateTo.getDate() - 1);
+        if ((dateToShow.getTime() - dateFrom.getTime()) > 0) {
+            data[0].info = clockTextDate(dateFrom) + " -- " + clockTextDate(dateToShow);
+        } else {
+            data[0].info = clockTextDate(dateFrom);
+        }
         for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
             l = data[i$];
-            if (l.duration && l.start >= fFrom && l.start < fTo) {
+            if (l.duration && l.start >= dateFrom && l.start < dateTo && lastHeader.text.match(headerRe)) {
                 lastHeader.sum += l.duration;
+                total += l.duration;
             }
             if (l.type === 'header') {
                 lastHeader = l;
                 lastHeader.sum = 0;
             }
         }
+        data[0].sum = total;
     }
-    ;
 
-    function listHeaders(data, dateFilter) {
-        var i$, len$, l;
-        summarize(data, dateFilter);
-        println(data[0].info);
-        for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
-            l = data[i$];
-            if (l.type === 'header' && l.sum > 0) {
+    function listHeaders(data, argv) {
+        var i, len, l;
+        var dateFilter = argv[0];
+        var headerLike = new RegExp(argv[1], "i");
+        var ref$ = calcFromTo(argv[0]), dateFrom = ref$[0], dateTo = ref$[1];
+        closeAll(data);
+        summarize(data, dateFrom, dateTo, headerLike);
+        println(data[0].info + ": [" + durationText(data[0].sum) + "]");
+        for (i = 0, len = data.length; i < len; ++i) {
+            l = data[i];
+            if (l.type === 'header' && l.sum > 0 && l.header.match(headerLike)) {
                 println(repeatString$('*', l.deep) + (" " + l.header) + (l.sum && l.sum > 0 ? " [" + durationText(l.sum) + "]" : ""));
             }
         }
     }
-    ;
+
+    function addDays(d, addDays) {
+        if (typeof addDays === "undefined") { addDays = 1; }
+        var d = new Date(d.getTime());
+        d.setDate(d.getDate() + addDays);
+        return d;
+    }
+
+    function listDays(data, argv) {
+        var i, len, l;
+        var dateFilter = argv[0];
+        var headerLike = new RegExp(argv[1], "i");
+        var ref$ = calcFromTo(argv[0]), dateFrom = ref$[0], dateTo = ref$[1];
+        var datePlusOne;
+        closeAll(data);
+        while (dateFrom.getTime() < dateTo.getTime()) {
+            datePlusOne = addDays(dateFrom);
+            summarize(data, dateFrom, datePlusOne, headerLike);
+            if (data[0].sum > 0) {
+                println(data[0].info + ": [" + durationText(data[0].sum) + "]");
+                for (i = 0, len = data.length; i < len; ++i) {
+                    l = data[i];
+                    if (l.type === 'header' && l.sum > 0 && l.header.match(headerLike)) {
+                        println(repeatString$('*', l.deep) + (" " + l.header) + (l.sum && l.sum > 0 ? " [" + durationText(l.sum) + "]" : ""));
+                    }
+                }
+            }
+            dateFrom = addDays(dateFrom, 1);
+        }
+    }
 
     function closeAll(data) {
         var lastHeader, i$, len$, l;
@@ -287,7 +328,6 @@
             }
         }
     }
-    ;
 
     function closeAllTimes(data, params) {
         closeAll(data);
@@ -295,7 +335,6 @@
             saveTimeData(data);
         }
     }
-    ;
 
     function checkIn(data, params) {
         var foundIdx, found, headerLike, i$, len$, idx, l, openLine;
@@ -375,9 +414,12 @@
                     });
                 }
                 break;
+            case 'sum':
             case 'ls':
             case 'show':
                 return loadTimeFile(listHeaders, argv);
+            case 'days':
+                return loadTimeFile(listDays, argv);
             case 'rewrite':
                 return loadTimeFile(saveTimeData, argv);
             case 'out':
@@ -395,11 +437,6 @@
         }
     }
     ;
+
     main(process.argv);
-    function repeatString$(str, n) {
-        for (var r = ''; n > 0; (n >>= 1) && (str += str))
-            if (n & 1)
-                r += str;
-        return r;
-    }
 }).call(this);
