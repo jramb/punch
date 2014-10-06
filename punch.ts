@@ -425,6 +425,7 @@ interface TimePair {
     case 'ls':
     case 'show':
       return loadTimeFile(listHeaders, argv);
+    case 'day':
     case 'days':
       return loadTimeFile(listDays, argv);
     case 'rewrite':
