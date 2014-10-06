@@ -16,7 +16,7 @@ interface TimePair {
   modified?:  boolean;
 }
 
-(function() {
+//(function() {
   var config : { clockfile: string; backupfile : string };
   var readline = require('readline');
   var fs = require('fs');
@@ -31,7 +31,6 @@ interface TimePair {
   var clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
   var headerMatch = /^(\*+)\s+(.*)$/;
   var dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
-
 
   function pad2(d: number) : string {
     if (d < 10) {
@@ -446,4 +445,4 @@ interface TimePair {
   };
 
   main(process.argv);
-}).call(this);
+//}).call(this);
