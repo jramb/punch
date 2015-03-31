@@ -16,6 +16,7 @@ interface TimePair {
   modified?:  boolean;
 }
 
+
 (function() {
   var config : { clockfile: string; backupfile : string };
   var readline = require('readline');
@@ -42,10 +43,10 @@ interface TimePair {
   }
 
   function clockText(dat: Date) : string {
-    var d;
-    d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
+    var d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
     return dat.getFullYear() + "-" + pad2(dat.getMonth() + 1) + "-" + pad2(dat.getDate()) + " " + d + " " + pad2(dat.getHours()) + ":" + pad2(dat.getMinutes());
   }
+
 
   function clockTextDate(dat: Date) :string {
     return clockText(dat).substring(0, 10);
@@ -219,7 +220,7 @@ interface TimePair {
   function calcFromTo(dateFilter : string) : Date[] {
     var mtch, pre, unit, mod, ref$, y, m, d, y1, y2, m1, m2, d1, d2;
     if (dateFilter) {
-      mtch = dateFilter.match(/^(this|last)?(month|week|year|today|all)([+-]\d+)?$/i);
+      mtch = dateFilter.match(/^(this|last)?(month|week|year|today|yesterday|all)([+-]\d+)?$/i);
       if (mtch) {
         pre = mtch[1], unit = mtch[2], mod = mtch[3];
       }
@@ -237,7 +238,7 @@ interface TimePair {
     d = startDate.getDate();
     ref$ = (function(){
       switch (unit.toLowerCase()) {
-      case 'today':
+      case 'today','yesterday':
         return [y, y, m, m, d + mod, d + mod + 1];
       case 'week':
         d -= getMonDay(startDate);
@@ -406,7 +407,7 @@ interface TimePair {
     case 'diff':
       backupfile = config.clockfile + config.backupfile;
       if (fs.existsSync(backupfile)) {
-        child = child_process.spawn('gvimdiff', [config.clockfile, backupfile], {
+        child = child_process.spawn('gvimdiff', [backupfile, config.clockfile], {
           detached: true
         });
         return child.on('close', function(){
