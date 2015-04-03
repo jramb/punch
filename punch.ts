@@ -238,7 +238,8 @@ interface TimePair {
     d = startDate.getDate();
     ref$ = (function(){
       switch (unit.toLowerCase()) {
-      case 'today','yesterday':
+      case 'today':
+      case 'yesterday':
         return [y, y, m, m, d + mod, d + mod + 1];
       case 'week':
         d -= getMonDay(startDate);
