@@ -239,8 +239,9 @@ interface TimePair {
     ref$ = (function(){
       switch (unit.toLowerCase()) {
       case 'today':
-      case 'yesterday':
         return [y, y, m, m, d + mod, d + mod + 1];
+      case 'yesterday':
+        return [y, y, m, m, d + mod -1, d + mod];
       case 'week':
         d -= getMonDay(startDate);
         return [y, y, m, m, d + mod * 7, d + (mod + 1) * 7];
