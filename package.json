@@ -1,0 +1,25 @@
+{
+  "name": "punch",
+  "version": "1.0.0",
+  "description": "Timecard tool and server",
+  "main": "punch.js",
+  "dependencies": {
+    "express": "^4.12.3",
+    "livescript": "^0.0.1",
+    "prelude-ls": "^1.1.1"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/jramb/punch.git"
+  },
+  "author": "J Ramb",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/jramb/punch/issues"
+  },
+  "homepage": "https://github.com/jramb/punch#readme"
+}
