@@ -70,7 +70,7 @@
 
     function parseLine(line, deep) {
         var h, ar, s, e;
-        if (h = line.match(/^(\*+)\s+(.*)$/)) {
+        if (h = line.match(headerMatch)) {
             return {
                 type: 'header',
                 deep: h[1].length,
