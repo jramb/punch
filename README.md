@@ -12,12 +12,12 @@ Installation
 ------------
 
 * Install node (http://nodejs.org/download/)
-* `npm install livescript` (optional!)
-* place `punch.ls` or `punch.js` somewhere on your system
-You only need one of these files, take the js version if you are not interested in LiveScript.
-* Create an org-mode file with at least one Header see below
+* OPTIONAL, if you want to use Typescript: `npm install -g typescript`
+* place `punch.js` somewhere on your system.
+The file `punch.ts` has been compiled to this using `tsc punch.ts`, but that is already done.
+* Create an org-mode file with at least one Header, see below
 * Add an environment variable `CLOCKFILE` which points to your org-mode CLOCK file
-* create a commando `punch` or `p` which executes `node punch.js` or `node punch.ls` (you only need one of these)
+* create a commando `punch` or `p` which executes `node punch.js` or `node punch.ts` (you only need one of these)
 * FIXME: Windows instructions
 
 Example org-file, headers start with an asterix. Add an empty line in the end of the file!
@@ -31,7 +31,7 @@ Example org-file, headers start with an asterix. Add an empty line in the end of
 2014-06-30
 ----------
 I started to rewrite this into a nodejs program (using LiveScript.net), which makes everything
-easier and quicker.
+easier and quicker. Later I converted it into Typescript. Yeah, I know. But things change.
 
 OLD
 ---
