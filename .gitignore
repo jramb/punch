@@ -1,0 +1,10 @@
+# Dependency directories
+node_modules/
+
+test.org-*
+
+# Optional npm cache directory
+.npm
+
+# dotenv environment variables file
+.env

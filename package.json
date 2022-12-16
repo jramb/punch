@@ -8,7 +8,9 @@
     "livescript": "^0.0.1",
     "prelude-ls": "^1.1.1"
   },
-  "devDependencies": {},
+  "devDependencies": {
+    "typescript": "^4.9.4"
+  },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -21,5 +23,10 @@
   "bugs": {
     "url": "https://github.com/jramb/punch/issues"
   },
-  "homepage": "https://github.com/jramb/punch#readme"
+  "homepage": "https://github.com/jramb/punch#readme",
+  "keywords": [
+    "time",
+    "org",
+    "timekeeping"
+  ]
 }
