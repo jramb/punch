@@ -1,6 +1,5 @@
 "use strict";
-/* 2014 by J Ramb */
-/// <reference path="node.d.ts" />
+/* 2014/2022 by J Ramb */
 var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
     if (k2 === undefined) k2 = k;
     var desc = Object.getOwnPropertyDescriptor(m, k);
@@ -69,7 +68,7 @@ config = {
     clockfile: process.env.CLOCKFILE,
     backupfile: "-" + clockText(startDate).substring(0, 10)
 };
-//FIXME
+//Alternatively, if exists, load co9nfig from 'punch.json' config file
 (function (configFile) {
     var that;
     if (fs.existsSync(configFile)) {

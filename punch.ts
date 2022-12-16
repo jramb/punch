@@ -1,12 +1,8 @@
-/* 2014 by J Ramb */
-/// <reference path="node.d.ts" />
-
-//enum Type {clock, text, header}
+/* 2014/2022 by J Ramb */
 
 interface OrgModeBase {
   text: string;
   info?: string;
-  duration?: number;
   deep?: number;
   modified?: boolean;
   start?: Date;
@@ -16,6 +12,7 @@ interface OrgModeClock extends OrgModeBase {
   type: 'clock';
   start: Date;
   sum?: number;
+  duration?: number;
 }
 
 interface OrgModeText extends OrgModeBase {
@@ -27,7 +24,6 @@ interface OrgModeHeader extends OrgModeBase {
   type: 'header';
   header: string;
   sum: number;
-  //  sum: string;
 }
 
 type OrgModeLine = OrgModeClock | OrgModeText | OrgModeHeader;
@@ -36,7 +32,6 @@ const noHeader: OrgModeHeader = { type: 'header', header: '', text: '', sum: 0 }
 
 import * as readline from 'readline';
 import * as fs from 'fs';
-import * as os from 'os';
 import * as child_process from 'child_process';
 import { WritableStream } from 'stream';
 const println = console.log;
@@ -85,7 +80,7 @@ config = {
 };
 
 //Alternatively, if exists, load co9nfig from 'punch.json' config file
-(function (configFile: string) {
+(function (configFile: string) {                                                                                                                                                                                                                                                                                                                      
   var that;
   if (fs.existsSync(configFile)) {
     if (that = fs.readFileSync(configFile)) {
