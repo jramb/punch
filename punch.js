@@ -1,72 +1,47 @@
 "use strict";
 /* 2014/2022 by J Ramb */
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.parseDateTime = exports.getMonDay = exports.clockTextDate = exports.clockText = exports.pad2 = void 0;
 ;
 const noHeader = { type: 'header', header: '', text: '', sum: 0 };
-const readline = __importStar(require("readline"));
-const fs = __importStar(require("fs"));
-const child_process = __importStar(require("child_process"));
+const readline = require("readline");
+const fs = require("fs");
+const child_process = require("child_process");
 const println = console.log;
 const startDate = new Date();
-const dateMatch = /\d{4}-\d{2}-\d{2}/;
-const timeMatch = /\d{2}:\d{2}/;
-const durationMatch = /-?\d+:\d{2}/;
-const dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
-const clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
-//const headerMatch = /^(\*+)\s+(.*)$/;
+const dateRE = /\d{4}-\d{2}-\d{2}/;
+const timeRE = /\d{2}:\d{2}/;
+const durationRE = /-?\d+:\d{2}/;
+const dateTimeRE = new RegExp("(" + dateRE.source + " [a-z]{2,3} " + timeRE.source + ")", 'i');
+const clockRE = new RegExp("CLOCK: \\[" + dateTimeRE.source + "\\](--\\[" + dateTimeRE.source + "\\]( =>\\s*(" + durationRE.source + "))?)?", 'i');
 const dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
-function pad2(d) {
-    if (d < 10) {
-        return "0" + d;
-    }
-    else {
-        return d + "";
-    }
-}
-function clockText(dat) {
-    var d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
-    return dat.getFullYear() + "-" + pad2(dat.getMonth() + 1) + "-" + pad2(dat.getDate()) + " " + d + " " + pad2(dat.getHours()) + ":" + pad2(dat.getMinutes());
-}
-function clockTextDate(dat) {
-    return clockText(dat).substring(0, 10);
-}
-function getMonDay(d) {
-    var day;
-    day = d.getDay() - 1;
-    if (day < 0) {
-        return 6;
-    }
-    else {
-        return day;
+let pad2 = (d) => (d < 10) ? "0" + d : d + "";
+exports.pad2 = pad2;
+let clockText = (dat) => {
+    const d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
+    return dat.getFullYear() + "-" + (0, exports.pad2)(dat.getMonth() + 1) + "-" + (0, exports.pad2)(dat.getDate()) + " " + d + " " + (0, exports.pad2)(dat.getHours()) + ":" + (0, exports.pad2)(dat.getMinutes());
+};
+exports.clockText = clockText;
+let clockTextDate = (dat) => (0, exports.clockText)(dat).substring(0, 10);
+exports.clockTextDate = clockTextDate;
+// Monday-based day: 0=Monday, 1 = Tuesday... 6 Sunday
+let getMonDay = (d) => {
+    const day = d.getDay() - 1;
+    return (day < 0) ? 6 : day;
+};
+exports.getMonDay = getMonDay;
+function parseDateTime(dt) {
+    if (dt) {
+        let parts = dt.match(dateTimeMatchDet);
+        if (parts) {
+            return new Date(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5]);
+        }
     }
 }
-let config;
-config = {
+exports.parseDateTime = parseDateTime;
+let config = {
     clockfile: process.env.CLOCKFILE,
-    backupfile: "-" + clockText(startDate).substring(0, 10)
+    backupfile: "-" + (0, exports.clockText)(startDate).substring(0, 10)
 };
 //Alternatively, if exists, load co9nfig from 'punch.json' config file
 (function (configFile) {
@@ -77,17 +52,8 @@ config = {
         }
     }
 }.call(this, 'punch.json'));
-function parseDateTime(dt) {
-    var parts;
-    if (dt) {
-        parts = dt.match(dateTimeMatchDet);
-        if (parts) {
-            return new Date(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5]);
-        }
-    }
-}
 function parseLine(line, deep) {
-    var h, ar, s, e;
+    let h, ar, s, e;
     if (h = line.match(/^(\*+)\s+(.*)$/)) {
         return {
             type: 'header',
@@ -97,7 +63,7 @@ function parseLine(line, deep) {
             text: line
         };
     }
-    else if (ar = line.match(clockMatch)) {
+    else if (ar = line.match(clockRE)) {
         s = parseDateTime(ar[1]); // match ensures this is not undefined
         e = parseDateTime(ar[3]);
         return {
@@ -134,7 +100,7 @@ function durationText(d) {
         : d + m;
     ds = d / 60 + "";
     ds = repeatString$(" ", (ref$ = 2 - ds.length) > 0 ? ref$ : 0) + ds;
-    return ds + ":" + pad2(m);
+    return ds + ":" + (0, exports.pad2)(m);
 }
 ;
 function generateLine(lineCode) {
@@ -143,9 +109,9 @@ function generateLine(lineCode) {
         case 'header':
             return repeatString$('*', lineCode.deep) + ' ' + lineCode.header;
         case 'clock':
-            ctxt = repeatString$(" ", lineCode.deep) + (" CLOCK: [" + clockText(lineCode.start) + "]");
+            ctxt = repeatString$(" ", lineCode.deep) + (" CLOCK: [" + (0, exports.clockText)(lineCode.start) + "]");
             if (lineCode.end) {
-                ctxt = ctxt + ("--[" + clockText(lineCode.end) + "] => " + durationText(lineCode.duration));
+                ctxt = ctxt + ("--[" + (0, exports.clockText)(lineCode.end) + "] => " + durationText(lineCode.duration));
             }
             return ctxt;
         default:
@@ -175,7 +141,7 @@ function saveTimeData(data) {
     let backupfile, tmpfile, out, i$, len$, it;
     let clockfile = getClockfileOrDie();
     backupfile = clockfile + config.backupfile;
-    tmpfile = clockfile + ("-" + clockText(startDate).replace(/[^0-9]/g, ''));
+    tmpfile = clockfile + ("-" + (0, exports.clockText)(startDate).replace(/[^0-9]/g, ''));
     if (!fs.existsSync(backupfile)) {
         fs.renameSync(clockfile, backupfile);
     }
@@ -206,10 +172,10 @@ function saveTimeData(data) {
 }
 ;
 function loadTimeFile(cb, params) {
-    let currentDeep = 0, fileData, rd;
+    let currentDeep = 0, fileData;
     let clockfile = getClockfileOrDie();
     fileData = [];
-    rd = readline.createInterface({
+    let rd = readline.createInterface({
         input: fs.createReadStream(clockfile),
         output: process.stdout,
         terminal: false
@@ -252,7 +218,7 @@ function calcFromTo(dateFilter) {
             case 'yesterday':
                 return [y, y, m, m, d + mod - 1, d + mod];
             case 'week':
-                d -= getMonDay(startDate);
+                d -= (0, exports.getMonDay)(startDate);
                 return [y, y, m, m, d + mod * 7, d + (mod + 1) * 7];
             case 'month':
                 return [y, y, m + mod, m + mod + 1, 1, 1];
@@ -272,10 +238,10 @@ function summarize(data, dateFrom, dateTo, headerRe) {
     dateToShow = new Date(dateTo.getTime());
     dateToShow.setDate(dateTo.getDate() - 1);
     if ((dateToShow.getTime() - dateFrom.getTime()) > 0) {
-        data[0].info = clockTextDate(dateFrom) + " -- " + clockTextDate(dateToShow);
+        data[0].info = (0, exports.clockTextDate)(dateFrom) + " -- " + (0, exports.clockTextDate)(dateToShow);
     }
     else {
-        data[0].info = clockTextDate(dateFrom);
+        data[0].info = (0, exports.clockTextDate)(dateFrom);
     }
     for (i$ = 0, len$ = data.length; i$ < len$; ++i$) {
         l = data[i$];

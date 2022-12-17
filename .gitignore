@@ -1,7 +1,11 @@
 # Dependency directories
 node_modules/
+lib/
+coverage/
 
 test.org-*
+*.test.js
+*.test.d.ts
 
 # Optional npm cache directory
 .npm

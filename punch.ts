@@ -8,6 +8,7 @@ interface OrgModeBase {
   start?: Date;
   end?: Date;
 };
+
 interface OrgModeClock extends OrgModeBase {
   type: 'clock';
   start: Date;
@@ -36,51 +37,45 @@ import * as child_process from 'child_process';
 import { WritableStream } from 'stream';
 const println = console.log;
 const startDate = new Date();
-const dateMatch = /\d{4}-\d{2}-\d{2}/;
-const timeMatch = /\d{2}:\d{2}/;
-const durationMatch = /-?\d+:\d{2}/;
-const dateTimeMatch = new RegExp("(" + dateMatch.source + " [a-z]{2,3} " + timeMatch.source + ")", 'i');
-const clockMatch = new RegExp("CLOCK: \\[" + dateTimeMatch.source + "\\](--\\[" + dateTimeMatch.source + "\\]( =>\\s*(" + durationMatch.source + "))?)?", 'i');
-//const headerMatch = /^(\*+)\s+(.*)$/;
+const dateRE = /\d{4}-\d{2}-\d{2}/;
+const timeRE = /\d{2}:\d{2}/;
+const durationRE = /-?\d+:\d{2}/;
+const dateTimeRE = new RegExp("(" + dateRE.source + " [a-z]{2,3} " + timeRE.source + ")", 'i');
+const clockRE = new RegExp("CLOCK: \\[" + dateTimeRE.source + "\\](--\\[" + dateTimeRE.source + "\\]( =>\\s*(" + durationRE.source + "))?)?", 'i');
 const dateTimeMatchDet = /(\d{4})-(\d{2})-(\d{2}) [a-z]{2,3} (\d{2}):(\d{2})/i;
 
 
-function pad2(d: number): string {
-  if (d < 10) {
-    return "0" + d;
-  } else {
-    return d + "";
-  }
-}
+export let pad2 = (d: number): string => (d < 10) ? "0" + d : d + "";
 
-function clockText(dat: Date): string {
-  var d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
+export let clockText = (dat: Date): string => {
+  const d = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'][dat.getDay()];
   return dat.getFullYear() + "-" + pad2(dat.getMonth() + 1) + "-" + pad2(dat.getDate()) + " " + d + " " + pad2(dat.getHours()) + ":" + pad2(dat.getMinutes());
 }
 
+export let clockTextDate = (dat: Date): string => clockText(dat).substring(0, 10);
 
-function clockTextDate(dat: Date): string {
-  return clockText(dat).substring(0, 10);
+// Monday-based day: 0=Monday, 1 = Tuesday... 6 Sunday
+export let getMonDay = (d: Date): number => {
+  const day = d.getDay() - 1;
+  return (day < 0) ? 6 : day;
 }
 
-function getMonDay(d: Date): number {
-  var day;
-  day = d.getDay() - 1;
-  if (day < 0) {
-    return 6;
-  } else {
-    return day;
+export function parseDateTime(dt: string): Date | undefined {
+  if (dt) {
+    let parts = dt.match(dateTimeMatchDet);
+    if (parts) {
+      return new Date(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5]);
+    }
   }
 }
 
-let config: { clockfile: string; backupfile: string };
-config = {
-  clockfile: process.env.CLOCKFILE,
+let config = {
+  clockfile: process.env.CLOCKFILE as string,
   backupfile: "-" + clockText(startDate).substring(0, 10)
 };
 
 //Alternatively, if exists, load co9nfig from 'punch.json' config file
-(function (configFile: string) {                                                                                                                                                                                                                                                                                                                      
+(function (configFile: string) {
   var that;
   if (fs.existsSync(configFile)) {
     if (that = fs.readFileSync(configFile)) {
@@ -89,18 +84,9 @@ config = {
   }
 }.call(this, 'punch.json'));
 
-function parseDateTime(dt: string): Date | undefined {
-  var parts;
-  if (dt) {
-    parts = dt.match(dateTimeMatchDet);
-    if (parts) {
-      return new Date(+parts[1], +parts[2] - 1, +parts[3], +parts[4], +parts[5]);
-    }
-  }
-}
 
 function parseLine(line: string, deep: number): OrgModeLine {
-  var h, ar, s, e;
+  let h, ar, s, e;
   if (h = line.match(/^(\*+)\s+(.*)$/)) {
     return {
       type: 'header',
@@ -109,7 +95,7 @@ function parseLine(line: string, deep: number): OrgModeLine {
       sum: 0,
       text: line
     };
-  } else if (ar = line.match(clockMatch)) {
+  } else if (ar = line.match(clockRE)) {
     s = parseDateTime(ar[1]) as Date; // match ensures this is not undefined
     e = parseDateTime(ar[3]);
     return {
@@ -217,11 +203,11 @@ function saveTimeData(data: OrgModeLine[]) {
 
 
 function loadTimeFile(cb: (fd: OrgModeLine[], p: string[]) => void, params: string[]) {
-  let currentDeep = 0, fileData: OrgModeLine[], rd: readline.ReadLine;
+  let currentDeep = 0, fileData: OrgModeLine[];
   let clockfile = getClockfileOrDie();
 
   fileData = [];
-  rd = readline.createInterface({
+  let rd = readline.createInterface({
     input: fs.createReadStream(clockfile),
     output: <WritableStream>(process.stdout as unknown),
     terminal: false
